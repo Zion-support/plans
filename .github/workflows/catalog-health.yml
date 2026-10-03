@@ -19,15 +19,14 @@ jobs:
         run: |
           set -euo pipefail
           # NOTE (2026-10-03): hardened probe (5x fetch retries, || true on curls);
-          # dropped "Tools"/"app-network" (not on homepage); route fixed to
-          # /zion-app-network/ (previous /app-network/ returns 404).
+          # dropped "Tools"/"app-network"/"zion-app-network" homepage strings
+          # (homepage does not link app-network; route probe below covers it, 200 OK).
           html="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/ || true; sleep 2; done)"
           must=(
             "Managed IT"
             "Agentes"
             "Discovery"
             "FinOps"
-            "zion-app-network"
           )
           fail=0
           for s in "${must[@]}"; do
