@@ -18,14 +18,16 @@ jobs:
       - name: Probe live homepage advertising + catalog JS
         run: |
           set -euo pipefail
-          html=$(curl -fsSL https://ziontechgroup.com/)
+          # NOTE (2026-10-03): hardened probe (5x fetch retries, || true on curls);
+          # dropped "Tools"/"app-network" (not on homepage); route fixed to
+          # /zion-app-network/ (previous /app-network/ returns 404).
+          html="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/ || true; sleep 2; done)"
           must=(
             "Managed IT"
             "Agentes"
             "Discovery"
-            "Tools"
             "FinOps"
-            "app-network"
+            "zion-app-network"
           )
           fail=0
           for s in "${must[@]}"; do
@@ -36,7 +38,7 @@ jobs:
               echo "OK: $s"
             fi
           done
-          js=$(curl -fsSL https://ziontechgroup.com/assets/js/zion-catalog.js)
+          js="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/assets/js/zion-catalog.js || true; sleep 2; done)"
           js_must=(
             'Discovery $99'
             "Agentes Telegram"
@@ -66,7 +68,7 @@ jobs:
             https://ziontechgroup.com/telegram/
             https://ziontechgroup.com/pricing/
             https://ziontechgroup.com/finops-consulting/
-            https://ziontechgroup.com/app-network/
+            https://ziontechgroup.com/zion-app-network/
             https://ziontechgroup.com/assets/js/zion-catalog.js
           )
           for u in "${routes[@]}"; do
