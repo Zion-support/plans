@@ -18,9 +18,8 @@ jobs:
       - name: Probe live homepage advertising + catalog JS
         run: |
           set -euo pipefail
-          # NOTE (2026-10-03): hardened probe (5x fetch retries, || true on curls);
-          # dropped "Tools"/"app-network"/"zion-app-network" homepage strings
-          # (homepage does not link app-network; route probe below covers it, 200 OK).
+          # NOTE (2026-10-06): Discovery is free sitewide; catalog check follows
+          # the current production contract rather than the retired $99 offer.
           html="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/ || true; sleep 2; done)"
           must=(
             "Managed IT"
@@ -39,7 +38,7 @@ jobs:
           done
           js="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/assets/js/zion-catalog.js || true; sleep 2; done)"
           js_must=(
-            'Discovery $99'
+            "Discovery"
             "Agentes Telegram"
             "Estimador FinOps"
             "ensureFinops"
