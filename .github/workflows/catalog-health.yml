@@ -39,6 +39,7 @@ jobs:
           js="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/assets/js/zion-catalog.js || true; sleep 2; done)"
           js_must=(
             "Discovery"
+            'name: "Free Discovery", href: "/discovery/"'
             "Agentes Telegram"
             "Estimador FinOps"
             "ensureFinops"
