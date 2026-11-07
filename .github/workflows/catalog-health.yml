@@ -5,81 +5,42 @@ on:
     - cron: "0 */6 * * *"
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
-      - "public/index.html"
-      - "public/data/zion-catalog.json"
-      - "public/assets/js/zion-catalog.js"
+      - "scripts/catalog_health.py"
+      - "scripts/test_catalog_health.py"
+      - "scripts/CATALOG_HEALTH.md"
+      - ".github/workflows/catalog-health.yml"
+  pull_request:
+    paths:
+      - "scripts/catalog_health.py"
+      - "scripts/test_catalog_health.py"
+      - "scripts/CATALOG_HEALTH.md"
       - ".github/workflows/catalog-health.yml"
 
+permissions:
+  contents: read
+
 jobs:
-  check:
+  selftest:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Probe live homepage advertising + catalog JS
-        run: |
-          set -euo pipefail
-          # NOTE (2026-10-06): Discovery is free sitewide; catalog check follows
-          # the current production contract rather than the retired $99 offer.
-          html="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/ || true; sleep 2; done)"
-          must=(
-            "Managed IT"
-            "Agentes"
-            "Discovery"
-            "FinOps"
-          )
-          fail=0
-          for s in "${must[@]}"; do
-            if ! grep -Fq "$s" <<< "$html"; then
-              echo "MISSING on homepage: $s"
-              fail=1
-            else
-              echo "OK: $s"
-            fi
-          done
-          js="$(for i in 1 2 3 4 5; do curl -fsSL -m 20 https://ziontechgroup.com/assets/js/zion-catalog.js || true; sleep 2; done)"
-          js_must=(
-            "Discovery"
-            'name: "Free Discovery", href: "/discovery/"'
-            "Agentes Telegram"
-            "Estimador FinOps"
-            "ensureFinops"
-            "finops-form"
-          )
-          for s in "${js_must[@]}"; do
-            if ! grep -Fq "$s" <<< "$js"; then
-              echo "MISSING in catalog JS: $s"
-              fail=1
-            else
-              echo "OK JS: $s"
-            fi
-          done
-          routes=(
-            https://ziontechgroup.com/
-            https://ziontechgroup.com/services/
-            https://ziontechgroup.com/agents/
-            https://ziontechgroup.com/plans/
-            https://ziontechgroup.com/discovery/
-            https://ziontechgroup.com/booking/
-            https://ziontechgroup.com/cpa/
-            https://ziontechgroup.com/free-ai-it-tools/
-            https://ziontechgroup.com/academy/
-            https://ziontechgroup.com/blog/
-            https://ziontechgroup.com/telegram/
-            https://ziontechgroup.com/pricing/
-            https://ziontechgroup.com/finops-consulting/
-            https://ziontechgroup.com/zion-app-network/
-            https://ziontechgroup.com/assets/js/zion-catalog.js
-          )
-          for u in "${routes[@]}"; do
-            code=$(curl -sI -o /dev/null -w "%{http_code}" "$u")
-            echo "$code $u"
-            case "$code" in
-              200|301|302) ;;
-              *) echo "BAD STATUS $code $u"; fail=1 ;;
-            esac
-          done
-          if [ "$fail" -ne 0 ]; then
-            echo "Watchdog found gaps."
-            exit 1
-          fi
-          echo "Watchdog green."
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      - name: Test watchdog offline
+        run: python3 -m unittest discover -s scripts -p 'test_catalog_health.py' -v
+  check:
+    needs: selftest
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
+      # This repository monitors production ziontechgroup.com, not its own build.
+      # Forms and current calculator assets must be connected; HTTP 200 alone is insufficient.
+      - name: Probe production routes and current offering contracts
+        run: python3 scripts/catalog_health.py
