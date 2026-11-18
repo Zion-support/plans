@@ -113,12 +113,21 @@ def require(condition, message):
     if not condition:
         raise ProbeError('CONTENT: ' + message)
 
+def free_discovery(text):
+    """Equivalent explicit EN/PT offers; an unrelated 'free' is insufficient."""
+    return bool(re.search(
+        r'\bfree\s+(?:ai\s+)?discovery\b|'
+        r'\bdiscovery\s+(?:(?:de\s+)?ia\s+)?(?:gr[aá]tis|gratuit[oa])\b|'
+        r'\b(?:gr[aá]tis|gratuit[oa])\s+(?:ia\s+)?discovery\b',
+        text, re.I))
+
 def homepage(doc, base):
     text = ' '.join(doc.text).lower()
-    for marker in ('managed it', 'agents', 'discovery', 'finops'):
+    for marker in ('managed it', 'discovery', 'finops'):
         require(marker in text, 'homepage missing offering: ' + marker)
+    require(re.search(r'\b(?:agents|agentes)\b', text), 'homepage missing offering: agents/agentes')
     require(any(doc.internal(h, '/discovery/', base) and
-                re.search(r'free\s+(?:ai\s+)?discovery', t, re.I)
+                free_discovery(t)
                 for h, t in doc.links), 'homepage missing Free Discovery CTA to /discovery/')
     for href, label in doc.links:
         if doc.internal(href, '/discovery/', base):
@@ -185,7 +194,7 @@ def check(base=BASE, getter=fetch, emit=print):
                 else:
                     require(doc.has('h1'), path + ' missing page heading')
                     if path == '/discovery/':
-                        require(re.search(r'free\s+(?:ai\s+)?discovery', ' '.join(doc.text), re.I), 'Discovery missing free offer')
+                        require(free_discovery(' '.join(doc.text)), 'Discovery missing free offer')
             emit('OK ' + path)
         except ProbeError as error:
             failures.append(path + ': ' + str(error))

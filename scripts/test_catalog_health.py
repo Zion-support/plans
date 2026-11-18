@@ -36,6 +36,42 @@ class Contracts(unittest.TestCase):
     def test_healthy_current_contract(self):
         self.assertEqual(self.run_check(fixtures()), 0)
 
+    def test_portuguese_equivalent_offers(self):
+        for label in ('Discovery gratuito', 'Discovery grátis', 'Discovery gratis',
+                      'Discovery de IA gratuita', 'Grátis Discovery'):
+            with self.subTest(label=label):
+                pages = fixtures()
+                pages['/'] = HOME.replace('Autonomous Agents', 'Agentes autônomos').replace('Free AI Discovery', label)
+                pages['/discovery/'] = '<html><h1>' + label + '</h1></html>'
+                self.assertEqual(self.run_check(pages), 0)
+
+    def test_portuguese_offer_still_requires_correct_destination(self):
+        pages = fixtures()
+        pages['/'] = HOME.replace('Free AI Discovery', 'Discovery gratuito').replace('href="/discovery/"', 'href="/pricing/"')
+        self.assertEqual(self.run_check(pages), 1)
+
+    def test_portuguese_offer_does_not_hide_paid_cta(self):
+        pages = fixtures()
+        pages['/'] = HOME.replace('Free AI Discovery', 'Discovery gratuito')
+        pages['/'] += '<a href="/discovery/">Discovery R$99</a>'
+        self.assertEqual(self.run_check(pages), 1)
+
+    def test_unrelated_free_words_are_not_discovery_offer(self):
+        for label in ('Discovery premium e ferramentas grátis', 'Discovery pago',
+                      'Discovery sem detalhes', 'Free tools and Discovery'):
+            with self.subTest(label=label):
+                pages = fixtures()
+                pages['/'] = HOME.replace('Free AI Discovery', label)
+                self.assertEqual(self.run_check(pages), 1)
+                pages = fixtures()
+                pages['/discovery/'] = '<html><h1>' + label + '</h1></html>'
+                self.assertEqual(self.run_check(pages), 1)
+
+    def test_portuguese_words_in_script_do_not_satisfy_offer(self):
+        pages = fixtures()
+        pages['/'] = '<html><h1>Managed IT FinOps</h1><script>Agentes Discovery gratuito</script></html>'
+        self.assertEqual(self.run_check(pages), 1)
+
     def test_missing_markers_do_not_pass_from_comments_or_scripts(self):
         pages = fixtures()
         pages['/'] = '<html><h1>Home</h1><!-- Managed IT Agents Discovery FinOps --><script>' + HOME + '</script></html>'
