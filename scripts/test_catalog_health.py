@@ -25,7 +25,7 @@ ALIAS = '<html><link rel="canonical" href="https://ziontechgroup.com/autonomous-
 def fixtures():
     result = {p: '<html><h1>Service</h1></html>' for p in health.ROUTES}
     result.update({p: FORM for p in health.ESTIMATORS})
-    result.update({'/': HOME, '/agents/': ALIAS, '/discovery/': '<html><h1>Free Discovery</h1></html>', health.SCRIPT: JS})
+    result.update({'/': HOME, '/agents/': ALIAS, '/discovery/': '<html><h1>Free Discovery</h1></html>', '/en/discovery/': '<html><h1>Free online AI &amp; IT Discovery</h1></html>', health.SCRIPT: JS})
     return result
 
 class Contracts(unittest.TestCase):
@@ -35,6 +35,20 @@ class Contracts(unittest.TestCase):
 
     def test_healthy_current_contract(self):
         self.assertEqual(self.run_check(fixtures()), 0)
+
+    def test_current_homepage_cta_to_english_discovery(self):
+        pages = fixtures()
+        pages['/'] = HOME.replace('/discovery/', '/en/discovery/').replace('Free AI Discovery', 'Free Online Discovery')
+        self.assertEqual(self.run_check(pages), 0)
+        pages['/'] += '<a href="/en/discovery/">Discovery $99</a>'
+        self.assertEqual(self.run_check(pages), 1)
+
+    def test_english_discovery_cannot_be_paid_or_a_placeholder(self):
+        for label in ('Discovery $99', 'Page not found'):
+            with self.subTest(label=label):
+                pages = fixtures()
+                pages['/en/discovery/'] = '<html><h1>' + label + '</h1></html>'
+                self.assertEqual(self.run_check(pages), 1)
 
     def test_portuguese_equivalent_offers(self):
         for label in ('Discovery gratuito', 'Discovery grátis', 'Discovery gratis',

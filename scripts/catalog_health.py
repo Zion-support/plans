@@ -11,9 +11,10 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 BASE = 'https://ziontechgroup.com/'
 SCRIPT = '/assets/js/finops-scenario.js'
+DISCOVERY = ('/discovery/', '/en/discovery/')
 ESTIMATORS = [f'/{lang}apps/finops-scenario-estimator.html' for lang in ('', 'pt/', 'es/', 'fr/', 'de/')]
 ROUTES = ['/', '/services/', '/agents/', '/autonomous-ai-agents/', '/plans/',
-          '/discovery/', '/booking/', '/cpa/', '/free-ai-it-tools/', '/academy/',
+          *DISCOVERY, '/booking/', '/cpa/', '/free-ai-it-tools/', '/academy/',
           '/blog/', '/telegram/', '/pricing/', '/finops-consulting/', '/zion-app-network/']
 
 class ProbeError(Exception):
@@ -116,7 +117,7 @@ def require(condition, message):
 def free_discovery(text):
     """Equivalent explicit EN/PT offers; an unrelated 'free' is insufficient."""
     return bool(re.search(
-        r'\bfree\s+(?:ai\s+)?discovery\b|'
+        r'\bfree\s+(?:online\s+)?(?:ai(?:\s*&\s*it)?\s+)?discovery\b|'
         r'\bdiscovery\s+(?:(?:de\s+)?ia\s+)?(?:gr[aá]tis|gratuit[oa])\b|'
         r'\b(?:gr[aá]tis|gratuit[oa])\s+(?:ia\s+)?discovery\b',
         text, re.I))
@@ -126,12 +127,12 @@ def homepage(doc, base):
     for marker in ('managed it', 'discovery', 'finops'):
         require(marker in text, 'homepage missing offering: ' + marker)
     require(re.search(r'\b(?:agents|agentes)\b', text), 'homepage missing offering: agents/agentes')
-    require(any(doc.internal(h, '/discovery/', base) and
-                free_discovery(t)
-                for h, t in doc.links), 'homepage missing Free Discovery CTA to /discovery/')
-    for href, label in doc.links:
-        if doc.internal(href, '/discovery/', base):
-            require(not re.search(r'\$\s*[1-9]\d*', label), 'paid Discovery CTA: ' + label)
+    discovery_links = [label for href, label in doc.links
+                       if any(doc.internal(href, path, base) for path in DISCOVERY)]
+    require(any(free_discovery(label) for label in discovery_links),
+            'homepage missing free Discovery CTA to /discovery/ or /en/discovery/')
+    for label in discovery_links:
+        require(not re.search(r'\$\s*[1-9]\d*', label), 'paid Discovery CTA: ' + label)
     require(doc.linked(ESTIMATORS[0], base), 'homepage missing current FinOps estimator link')
     require(doc.linked('/ai-services/ai-agents-autonomous-workflows/', base) or
             doc.linked('/autonomous-ai-agents/', base), 'homepage missing agents destination')
@@ -193,7 +194,7 @@ def check(base=BASE, getter=fetch, emit=print):
                     alias(doc, final, base)
                 else:
                     require(doc.has('h1'), path + ' missing page heading')
-                    if path == '/discovery/':
+                    if path in DISCOVERY:
                         require(free_discovery(' '.join(doc.text)), 'Discovery missing free offer')
             emit('OK ' + path)
         except ProbeError as error:
